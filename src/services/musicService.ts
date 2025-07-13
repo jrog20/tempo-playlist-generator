@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { Song, PlaylistRequest, PlaylistResponse } from '../types';
+import { PlaylistRequest, PlaylistResponse, Song } from '../types';
 
 // Mock data for demonstration - in a real app, you'd use actual APIs
 const mockSongs: Song[] = [

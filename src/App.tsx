@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Callback from './Callback';
 import { MusicService } from './services/musicService';
 import { searchSpotifyTrack, getSpotifyAudioFeatures, searchSimilarTracks } from './services/musicService';
-import { PlaylistRequest, PlaylistResponse, Song } from './types';
+import { PlaylistResponse, Song } from './types';
 import { AuthProvider, useAuth } from './AuthContext';
 
 const musicService = MusicService.getInstance();
