@@ -2,10 +2,15 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID!;
-const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI!;
+const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID || 'demo-client-id';
+const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI || 'https://jrog20.github.io/tempo-playlist-generator/callback';
 
 async function exchangeCodeForToken(code: string, codeVerifier: string) {
+  // Check if we have valid environment variables
+  if (!process.env.REACT_APP_SPOTIFY_CLIENT_ID) {
+    throw new Error('Spotify API not configured');
+  }
+  
   const params = new URLSearchParams({
     client_id: clientId,
     grant_type: 'authorization_code',
@@ -61,7 +66,7 @@ const Callback: React.FC = () => {
         alert('Failed to authenticate with Spotify');
         navigate('/login');
       });
-  }, [location, navigate]);
+  }, [location, navigate, setAccessToken]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
