@@ -26,58 +26,12 @@ const MainApp: React.FC = () => {
     setError('');
     setPlaylist(null);
     try {
-      // 1. Search for the reference track
-      const refTrack = await searchSpotifyTrack(songName.trim(), artistName.trim());
-      if (!refTrack) {
-        setError('Reference song not found on Spotify');
-        setLoading(false);
-        return;
-      }
-      // 2. Get audio features (tempo)
-      const audioFeatures = await getSpotifyAudioFeatures(refTrack.id);
-      const targetTempo = audioFeatures.tempo;
-      // 3. Get genre (from first artist, if available)
-      let genre = undefined;
-      if (refTrack.artists && refTrack.artists[0]) {
-        // Optionally, fetch artist genres from Spotify API
-        const accessToken = localStorage.getItem('spotify_access_token');
-        const artistRes = await fetch(`https://api.spotify.com/v1/artists/${refTrack.artists[0].id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (artistRes.ok) {
-          const artistData = await artistRes.json();
-          genre = artistData.genres && artistData.genres[0];
-        }
-      }
-      // 4. Search for similar tracks
-      const recTracks = await searchSimilarTracks(refTrack.id, targetTempo, genre);
-      // 5. Build playlist to match target duration
-      const targetDuration = duration * 60; // seconds
-      let currentDuration = 0;
-      const playlistSongs: Song[] = [];
-      for (const track of recTracks) {
-        if (currentDuration + track.duration_ms / 1000 <= targetDuration) {
-          playlistSongs.push({
-            id: track.id,
-            title: track.name,
-            artist: track.artists.map((a: any) => a.name).join(', '),
-            album: track.album?.name,
-            tempo: targetTempo,
-            genre: genre || '',
-            duration: Math.floor(track.duration_ms / 1000),
-            spotifyId: track.id,
-            previewUrl: track.preview_url,
-          });
-          currentDuration += track.duration_ms / 1000;
-        }
-        if (currentDuration >= targetDuration) break;
-      }
-      setPlaylist({
-        songs: playlistSongs,
-        totalDuration: currentDuration,
-        targetTempo,
-        genres: genre ? [genre] : [],
+      const playlistResponse = await musicService.generatePlaylist({
+        referenceSong: songName.trim(),
+        referenceArtist: artistName.trim(),
+        duration,
       });
+      setPlaylist(playlistResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate playlist');
     } finally {

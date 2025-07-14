@@ -12,6 +12,13 @@ const root = ReactDOM.createRoot(
    //     <App />
    //   </React.StrictMode>
    // );
+   const params = new URLSearchParams(window.location.search);
+   if (params.get('code') && !window.location.hash.includes('/callback')) {
+     // Redirect to the callback route, preserving the code and any other params
+     window.location.replace(
+       `${window.location.origin}${window.location.pathname}#${'/callback'}${window.location.search}`
+     );
+   }
    root.render(<App />);
 
 // If you want to start measuring performance in your app, pass a function

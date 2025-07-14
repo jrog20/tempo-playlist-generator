@@ -3,14 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID || 'demo-client-id';
-const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI || 'https://jrog20.github.io/tempo-playlist-generator/callback';
+const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI || 'https://jrog20.github.io/tempo-playlist-generator/#/callback';
 
 async function exchangeCodeForToken(code: string, codeVerifier: string) {
-  // Check if we have valid environment variables
   if (!process.env.REACT_APP_SPOTIFY_CLIENT_ID) {
     throw new Error('Spotify API not configured');
   }
-  
   const params = new URLSearchParams({
     client_id: clientId,
     grant_type: 'authorization_code',
@@ -28,16 +26,25 @@ async function exchangeCodeForToken(code: string, codeVerifier: string) {
 }
 
 const Callback: React.FC = () => {
-  console.log('Callback component rendered');
   const navigate = useNavigate();
   const location = useLocation();
   const { setAccessToken } = useAuth();
-  
+
   useEffect(() => {
-    console.log('Callback useEffect rendered');
-    const urlParams = new URLSearchParams(location.search);
-    const code = urlParams.get('code');
-    const error = urlParams.get('error');
+    // Try to get code and error from query string
+    let urlParams = new URLSearchParams(location.search);
+    let code = urlParams.get('code');
+    let error = urlParams.get('error');
+
+    // If not found, try to get code and error from hash fragment
+    if ((!code || !error) && location.hash) {
+      // Remove leading # or #/
+      const hash = location.hash.replace(/^#\/?/, '');
+      const hashParams = new URLSearchParams(hash);
+      if (!code) code = hashParams.get('code');
+      if (!error) error = hashParams.get('error');
+    }
+
     if (error) {
       alert('Spotify login failed: ' + error);
       navigate('/login');
@@ -54,12 +61,9 @@ const Callback: React.FC = () => {
       navigate('/login');
       return;
     }
-    console.log('Code:', code);
-    console.log('Code verifier:', codeVerifier);
     exchangeCodeForToken(code, codeVerifier)
       .then(data => {
         setAccessToken(data.access_token);
-        // Optionally store refresh_token and expires_in
         navigate('/');
       })
       .catch(() => {
