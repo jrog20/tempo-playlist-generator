@@ -45,6 +45,9 @@ const Callback: React.FC = () => {
       if (!error) error = hashParams.get('error');
     }
 
+    console.log('PKCE Debug - code:', code);
+    console.log('PKCE Debug - error:', error);
+
     if (error) {
       alert('Spotify login failed: ' + error);
       navigate('/login');
@@ -56,6 +59,7 @@ const Callback: React.FC = () => {
       return;
     }
     const codeVerifier = sessionStorage.getItem('spotify_code_verifier');
+    console.log('PKCE Debug - codeVerifier:', codeVerifier);
     if (!codeVerifier) {
       alert('No PKCE code verifier found');
       navigate('/login');
@@ -63,10 +67,12 @@ const Callback: React.FC = () => {
     }
     exchangeCodeForToken(code, codeVerifier)
       .then(data => {
+        console.log('PKCE Debug - token exchange response:', data);
         setAccessToken(data.access_token);
         navigate('/');
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('PKCE Debug - token exchange error:', err);
         alert('Failed to authenticate with Spotify');
         navigate('/login');
       });
