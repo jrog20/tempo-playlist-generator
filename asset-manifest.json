@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/tempo-playlist-generator/static/css/main.1e79be41.css",
-    "main.js": "/tempo-playlist-generator/static/js/main.8ed5fcf6.js",
+    "main.js": "/tempo-playlist-generator/static/js/main.2f275bd6.js",
     "static/js/453.885902d7.chunk.js": "/tempo-playlist-generator/static/js/453.885902d7.chunk.js",
     "index.html": "/tempo-playlist-generator/index.html",
     "main.1e79be41.css.map": "/tempo-playlist-generator/static/css/main.1e79be41.css.map",
-    "main.8ed5fcf6.js.map": "/tempo-playlist-generator/static/js/main.8ed5fcf6.js.map",
+    "main.2f275bd6.js.map": "/tempo-playlist-generator/static/js/main.2f275bd6.js.map",
     "453.885902d7.chunk.js.map": "/tempo-playlist-generator/static/js/453.885902d7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.1e79be41.css",
-    "static/js/main.8ed5fcf6.js"
+    "static/js/main.2f275bd6.js"
   ]
 }
