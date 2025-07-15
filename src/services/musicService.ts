@@ -9,10 +9,17 @@ function getSpotifyAccessToken() {
 export async function searchSpotifyTrack(songName: string, artistName: string) {
   const accessToken = getSpotifyAccessToken();
   if (!accessToken) throw new Error('No Spotify access token found');
+  
+  console.log('DEBUG: About to search for track:', songName, 'by', artistName);
+  console.log('DEBUG: Search access token being used:', accessToken.substring(0, 20) + '...');
+  
   const q = `${songName} artist:${artistName}`;
   const response = await fetch(`https://api.spotify.com/v1/search?type=track&limit=1&q=${encodeURIComponent(q)}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+  
+  console.log('DEBUG: Search response status:', response.status);
+  
   if (!response.ok) throw new Error('Failed to search track');
   const data = await response.json();
   return data.tracks.items[0] || null;
@@ -22,12 +29,21 @@ export async function searchSpotifyTrack(songName: string, artistName: string) {
 export async function getSpotifyAudioFeatures(trackId: string) {
   const accessToken = getSpotifyAccessToken();
   if (!accessToken) throw new Error('No Spotify access token found');
+  
+  console.log('DEBUG: About to fetch audio features for trackId:', trackId);
+  console.log('DEBUG: Access token being used:', accessToken.substring(0, 20) + '...');
+  
   const response = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+  
+  console.log('DEBUG: Audio features response status:', response.status);
+  console.log('DEBUG: Audio features response headers:', Object.fromEntries(response.headers.entries()));
+  
   if (!response.ok) {
     const errorBody = await response.text();
     console.error('Failed to get audio features:', response.status, errorBody);
+    console.error('DEBUG: Full error response body:', errorBody);
     // if (response.status === 401 || response.status === 403) {
     //   localStorage.removeItem('spotify_access_token');
     //   window.location.href = '/#/login';
@@ -92,10 +108,10 @@ export class MusicService {
   async searchSong(songName: string, artistName: string): Promise<Song | null> {
     try {
       const track = await searchSpotifyTrack(songName, artistName);
-      console.log('track in searchSong:', track); //correct value found here
+      console.log('track in searchSong:', track); //I GET THE CORRECT VALUE HERE, SEE CONSOLE LOG SCREENSHOT
       if (!track) return null;
       const audioFeatures = await getSpotifyAudioFeatures(track.id);
-      console.log('audioFeatures in searchSong:', audioFeatures); //NOT GETTING TO HERE
+      console.log('audioFeatures in searchSong:', audioFeatures); //NOT GETTING TO HERE! WHAT IS GOING WRONG IN BETWEEN?
       return {
         id: track.id,
         title: track.name,
