@@ -25,8 +25,18 @@ export async function getSpotifyAudioFeatures(trackId: string) {
   const response = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!response.ok) throw new Error('Failed to get audio features');
-  return response.json();
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('Failed to get audio features:', response.status, errorBody);
+    // if (response.status === 401 || response.status === 403) {
+    //   localStorage.removeItem('spotify_access_token');
+    //   window.location.href = '/#/login';
+    // }
+    throw new Error('Failed to get audio features');
+  }
+  const data = await response.json();
+  console.log('data in getSpotifyAudioFeatures:', data); 
+  return data;
 }
 
 // Search for tracks by tempo and genre (approximate, using recommendations endpoint)
@@ -82,8 +92,10 @@ export class MusicService {
   async searchSong(songName: string, artistName: string): Promise<Song | null> {
     try {
       const track = await searchSpotifyTrack(songName, artistName);
+      console.log('track in searchSong:', track); //correct value found here
       if (!track) return null;
       const audioFeatures = await getSpotifyAudioFeatures(track.id);
+      console.log('audioFeatures in searchSong:', audioFeatures); //NOT GETTING TO HERE
       return {
         id: track.id,
         title: track.name,
@@ -106,6 +118,7 @@ export class MusicService {
     try {
       // 1. Find the reference song
       const referenceSong = await this.searchSong(request.referenceSong, request.referenceArtist);
+      console.log('RIGHT BEFORE referenceSong in generatePlaylist: ', referenceSong); //null
       if (!referenceSong) {
         throw new Error('Reference song not found');
       }
