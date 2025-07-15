@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Callback from './Callback';
-import { MusicService } from './services/musicService';
+import { MusicService, getPreviewUrl } from './services/musicService';
 import { searchSpotifyTrack, getSpotifyAudioFeatures, searchSimilarTracks } from './services/musicService';
 import { PlaylistResponse, Song } from './types';
 import { AuthProvider, useAuth } from './AuthContext';
@@ -178,7 +178,7 @@ const MainApp: React.FC = () => {
                         </div>
                         {song.spotifyId && (
                           <a
-                            href={musicService.getPreviewUrl(song.spotifyId)}
+                            href={getPreviewUrl(song.spotifyId)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-purple-400 hover:text-purple-300 transition-colors"

@@ -3,7 +3,7 @@ import { generateCodeVerifier, generateCodeChallenge } from './services/pkceUtil
 
 const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID || 'demo-client-id';
 const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI || 'https://jrog20.github.io/tempo-playlist-generator/callback';
-const scope = 'playlist-read-private playlist-read-collaborative user-read-private user-read-email';
+const scope = 'playlist-read-private playlist-read-collaborative user-read-private user-read-email playlist-modify-public playlist-modify-private';
 
 async function handleLogin() {
   // Check if we have valid environment variables
