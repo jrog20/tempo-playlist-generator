@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID || 'demo-client-id';
-const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI || 'https://jrog20.github.io/tempo-playlist-generator/#/callback';
+const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI || 'https://jrog20.github.io/tempo-playlist-generator/';
 
 async function exchangeCodeForToken(code: string, codeVerifier: string) {
   if (!process.env.REACT_APP_SPOTIFY_CLIENT_ID) {

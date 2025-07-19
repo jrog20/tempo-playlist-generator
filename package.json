@@ -2,7 +2,7 @@
   "name": "tempo-playlist-generator",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://jaimerogstad.github.io/tempo-playlist-generator",
+  "homepage": "https://jrog20.github.io/tempo-playlist-generator",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",

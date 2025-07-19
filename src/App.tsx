@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Callback from './Callback';
-import { MusicService, getPreviewUrl } from './services/musicService';
-import { searchSpotifyTrack, getSpotifyAudioFeatures, searchSimilarTracks } from './services/musicService';
-import { PlaylistResponse, Song } from './types';
+import { MusicService, getPreviewUrl, testRecommendationsEndpoint, testAudioFeaturesEndpoint, testTrackAnalysisEndpoint, testSeveralTracksAudioFeatures, testUserSavedTracks } from './services/musicService';
+import { PlaylistResponse } from './types';
 import { AuthProvider, useAuth } from './AuthContext';
 
 const musicService = MusicService.getInstance();
@@ -36,6 +35,46 @@ const MainApp: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to generate playlist');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestRecommendations = async () => {
+    try {
+      await testRecommendationsEndpoint();
+    } catch (error) {
+      console.error('Recommendations test failed:', error);
+    }
+  };
+
+  const handleTestAudioFeatures = async () => {
+    try {
+      await testAudioFeaturesEndpoint();
+    } catch (error) {
+      console.error('Audio features test failed:', error);
+    }
+  };
+
+  const handleTestTrackAnalysis = async () => {
+    try {
+      await testTrackAnalysisEndpoint();
+    } catch (error) {
+      console.error('Track analysis test failed:', error);
+    }
+  };
+
+  const handleTestSeveralTracksAudioFeatures = async () => {
+    try {
+      await testSeveralTracksAudioFeatures();
+    } catch (error) {
+      console.error('Several tracks audio features test failed:', error);
+    }
+  };
+
+  const handleTestUserSavedTracks = async () => {
+    try {
+      await testUserSavedTracks();
+    } catch (error) {
+      console.error('User saved tracks test failed:', error);
     }
   };
 
@@ -121,6 +160,36 @@ const MainApp: React.FC = () => {
                 ) : (
                   <span>Generate Playlist</span>
                 )}
+              </button>
+              <button
+                onClick={handleTestRecommendations}
+                className="w-full mt-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+              >
+                Test Recommendations API
+              </button>
+              <button
+                onClick={handleTestAudioFeatures}
+                className="w-full mt-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+              >
+                Test Audio Features API
+              </button>
+              <button
+                onClick={handleTestTrackAnalysis}
+                className="w-full mt-2 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+              >
+                Test Track Analysis API
+              </button>
+              <button
+                onClick={handleTestSeveralTracksAudioFeatures}
+                className="w-full mt-2 bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+              >
+                Test Several Tracks Audio Features
+              </button>
+              <button
+                onClick={handleTestUserSavedTracks}
+                className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+              >
+                Test User Saved Tracks
               </button>
             </div>
           </div>
