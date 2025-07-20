@@ -15,8 +15,10 @@ const MainApp: React.FC = () => {
   const [playlist, setPlaylist] = useState<PlaylistResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bpm, setBpm] = useState<number | null>(null);
+  const [userAdjustedBpm, setUserAdjustedBpm] = useState<number | null>(null);
 
-  const handleGeneratePlaylist = async () => {
+  const handleGeneratePlaylist = async (customBpm?: number) => {
     if (!songName.trim() || !artistName.trim()) {
       setError('Please enter both song name and artist');
       return;
@@ -34,8 +36,11 @@ const MainApp: React.FC = () => {
         referenceSong: songName.trim(),
         referenceArtist: artistName.trim(),
         duration,
+        bpm: customBpm || undefined,
       });
       setPlaylist(playlistResponse);
+      setBpm(playlistResponse.targetTempo);
+      setUserAdjustedBpm(null);
     } catch (err) {
       console.error('DEBUG: Playlist generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate playlist');
@@ -108,13 +113,44 @@ const MainApp: React.FC = () => {
                   <span className="text-white font-semibold min-w-[60px]">{duration} min</span>
                 </div>
               </div>
+              {/* BPM Adjustment: show only after playlist is generated */}
+              {playlist && bpm && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Detected BPM (adjust if needed)</label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="40"
+                      max="220"
+                      value={userAdjustedBpm ?? bpm}
+                      onChange={e => setUserAdjustedBpm(Number(e.target.value))}
+                      className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <input
+                      type="number"
+                      min="40"
+                      max="220"
+                      value={userAdjustedBpm ?? bpm}
+                      onChange={e => setUserAdjustedBpm(Number(e.target.value))}
+                      className="w-20 px-2 py-1 rounded bg-white/10 border border-white/20 text-white text-center"
+                    />
+                    <button
+                      className="ml-2 px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                      onClick={() => handleGeneratePlaylist(userAdjustedBpm ?? bpm)}
+                      disabled={loading}
+                    >
+                      Regenerate with BPM
+                    </button>
+                  </div>
+                </div>
+              )}
               {error && (
                 <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-300">
                   {error}
                 </div>
               )}
               <button 
-                onClick={handleGeneratePlaylist}
+                onClick={() => handleGeneratePlaylist()}
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
               >

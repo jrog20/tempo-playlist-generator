@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+require('dotenv').config();
+const OpenAI = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +45,57 @@ app.get('/api/spotify/audio-features/:trackId', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+async function getBpmAndGenreFromOpenAI(song, artist) {
+  const prompt = `You are a music expert with deep knowledge of song tempos and genres. 
+
+Analyze the song "${song}" by "${artist}" and provide:
+1. The BPM (beats per minute) - be as accurate as possible based on the song's rhythm and style
+2. The primary genre of the song
+
+Consider these BPM ranges for different styles:
+- Ballads/Slow songs: 60-80 BPM
+- Medium tempo pop/rock: 90-120 BPM  
+- Upbeat pop/dance: 120-140 BPM
+- Fast dance/electronic: 140-160 BPM
+- Hip-hop/rap: 80-100 BPM (typically)
+- Country: 80-120 BPM
+- Jazz: 60-200 BPM (varies widely)
+- Classical: 40-200 BPM (varies widely)
+
+Respond in exactly this format:
+BPM: <number>
+Genre: <genre>
+
+Example: For "Shape of You" by Ed Sheeran, you would respond:
+BPM: 96
+Genre: pop
+
+Be precise and consider the artist's typical style and the song's characteristics.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo', // or 'gpt-4' if you have access
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 100,
+      temperature: 0.1, // Low temperature for more consistent results
+    });
+    const text = completion.choices[0].message.content;
+    console.log('OpenAI response:', text);
+    
+    // Parse response
+    const bpmMatch = text.match(/BPM[:\s]+(\d+)/i);
+    const genreMatch = text.match(/Genre[:\s]+([A-Za-z0-9 ,&-]+)/i);
+    const bpm = bpmMatch ? parseInt(bpmMatch[1], 10) : null;
+    const genre = genreMatch ? genreMatch[1].trim() : null;
+    
+    console.log('Parsed BPM:', bpm, 'Genre:', genre);
+    return { bpm, genre, raw: text };
+  } catch (err) {
+    console.error('OpenAI API error:', err);
+    return { bpm: null, genre: null, raw: null };
+  }
+}
 
 // Proxy endpoint for external tempo APIs
 app.get('/api/tempo/:artist/:song', async (req, res) => {
@@ -128,82 +182,12 @@ app.get('/api/tempo/:artist/:song', async (req, res) => {
       console.log('Musixmatch API failed:', error.message);
     }
     
-    // Try Last.fm API for tag-based estimation (fallback)
-    try {
-      console.log('Trying Last.fm API for tag-based estimation...');
-      const lastfmResponse = await fetch(
-        `https://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(song)}&api_key=fec31c2387c9a084582de7f15c50fd8e&format=json`
-      );
-      
-      if (lastfmResponse.ok) {
-        const data = await lastfmResponse.json();
-        console.log('Last.fm response tags:', data.track?.toptags?.tag);
-        
-        if (data.track && data.track.toptags && data.track.toptags.tag) {
-          const tags = data.track.toptags.tag.map(tag => tag.name.toLowerCase());
-          console.log('Processing tags:', tags);
-          
-          // More sophisticated tempo estimation based on tags and genres
-          if (tags.includes('fast') || tags.includes('upbeat') || tags.includes('dance') || tags.includes('electronic') || tags.includes('edm')) {
-            return res.json({ tempo: 140, source: 'lastfm-tags' });
-          }
-          if (tags.includes('slow') || tags.includes('ballad') || tags.includes('acoustic') || tags.includes('country') || tags.includes('folk')) {
-            return res.json({ tempo: 80, source: 'lastfm-tags' });
-          }
-          if (tags.includes('hip-hop') || tags.includes('rap') || tags.includes('trap')) {
-            return res.json({ tempo: 150, source: 'lastfm-tags' });
-          }
-          if (tags.includes('rock') || tags.includes('alternative') || tags.includes('indie')) {
-            return res.json({ tempo: 130, source: 'lastfm-tags' });
-          }
-          if (tags.includes('pop') || tags.includes('electropop') || tags.includes('synth-pop')) {
-            return res.json({ tempo: 125, source: 'lastfm-tags' });
-          }
-          if (tags.includes('r&b') || tags.includes('soul') || tags.includes('blues')) {
-            return res.json({ tempo: 110, source: 'lastfm-tags' });
-          }
-          if (tags.includes('jazz') || tags.includes('lounge')) {
-            return res.json({ tempo: 90, source: 'lastfm-tags' });
-          }
-          if (tags.includes('classical') || tags.includes('orchestral')) {
-            return res.json({ tempo: 70, source: 'lastfm-tags' });
-          }
-          
-          // If we have tags but none match our conditions, use a weighted average
-          if (tags.length > 0) {
-            console.log('Using weighted tag-based estimation');
-            // Calculate tempo based on tag presence
-            let tempoSum = 0;
-            let tagCount = 0;
-            
-            tags.forEach(tag => {
-              if (tag.includes('fast') || tag.includes('upbeat')) {
-                tempoSum += 140;
-                tagCount++;
-              } else if (tag.includes('slow') || tag.includes('ballad')) {
-                tempoSum += 80;
-                tagCount++;
-              } else if (tag.includes('pop')) {
-                tempoSum += 125;
-                tagCount++;
-              } else if (tag.includes('rock')) {
-                tempoSum += 130;
-                tagCount++;
-              } else if (tag.includes('hip-hop') || tag.includes('rap')) {
-                tempoSum += 150;
-                tagCount++;
-              }
-            });
-            
-            if (tagCount > 0) {
-              const estimatedTempo = Math.round(tempoSum / tagCount);
-              return res.json({ tempo: estimatedTempo, source: 'lastfm-weighted-tags' });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.log('Last.fm API failed:', error.message);
+    // Try OpenAI LLM for BPM estimation (primary fallback)
+    console.log('Trying OpenAI LLM for BPM estimation...');
+    const aiResult = await getBpmAndGenreFromOpenAI(song, artist);
+    if (aiResult.bpm) {
+      console.log(`Found BPM from OpenAI LLM: ${aiResult.bpm}`);
+      return res.json({ tempo: aiResult.bpm, genre: aiResult.genre, source: 'openai', raw: aiResult.raw });
     }
     
     // Fallback: Estimate tempo based on artist/song characteristics

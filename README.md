@@ -94,9 +94,9 @@ To integrate with real music services, you can modify the `MusicService` class:
    const SPOTIFY_CLIENT_SECRET = 'your_client_secret';
    ```
 
-2. **Last.fm API** (free tier available):
+2. **OpenAI API** (requires API key):
    ```typescript
-   const LASTFM_API_KEY = 'your_api_key';
+   const OPENAI_API_KEY = 'your_openai_api_key';
    ```
 
 3. **MusicBrainz API** (completely free):

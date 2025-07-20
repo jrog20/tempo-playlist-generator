@@ -376,7 +376,8 @@ export class MusicService {
       if (!referenceSong) {
         throw new Error('Reference song not found');
       }
-      const targetTempo = referenceSong.tempo;
+      // Use user-provided bpm if present, otherwise use detected tempo
+      const targetTempo = request.bpm ?? referenceSong.tempo;
       
       // Check token before recommendations
       const tokenBeforeRecs = getSpotifyAccessToken();
@@ -396,7 +397,7 @@ export class MusicService {
             title: track.name,
             artist: track.artists.map((a: any) => a.name).join(', '),
             album: track.album?.name,
-            tempo: targetTempo, // Use the reference song's tempo
+            tempo: targetTempo, // Use the reference song's tempo or user-adjusted
             genre: '', // Optionally fetch genre
             duration: Math.floor(track.duration_ms / 1000),
             spotifyId: track.id,
@@ -423,26 +424,61 @@ export class MusicService {
     const accessToken = getSpotifyAccessToken();
     console.log('DEBUG: getSearchBasedRecommendations - access token:', accessToken ? 'present' : 'missing');
     if (!accessToken) throw new Error('No Spotify access token found');
-    
-    // Search for similar artists and songs
-    const searchQueries = [
-      `artist:${referenceSong.artist}`,
-      `genre:pop`,
-      `genre:${referenceSong.artist.toLowerCase().includes('pop') ? 'pop' : 'rock'}`,
-      `year:2020-2024`,
-    ];
-    
+
+    // Fetch genre and year for the reference song
+    let genre = '';
+    let year = '';
+    try {
+      // Get track details (for album info)
+      const trackRes = await fetch(`https://api.spotify.com/v1/tracks/${referenceSong.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (trackRes.ok) {
+        const trackData = await trackRes.json();
+        if (trackData.album && trackData.album.release_date) {
+          // Use only the year part
+          year = trackData.album.release_date.substring(0, 4);
+        }
+        // Get artist ID
+        const artistId = trackData.artists[0]?.id;
+        if (artistId) {
+          // Get artist details for genres
+          const artistRes = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (artistRes.ok) {
+            const artistData = await artistRes.json();
+            if (artistData.genres && artistData.genres.length > 0) {
+              genre = artistData.genres[0]; // Use the first genre
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.log('DEBUG: Could not fetch genre/year for reference song:', err);
+    }
+    console.log('DEBUG: Using genre:', genre, 'year:', year);
+
+    // Build dynamic search queries
+    const searchQueries = [];
+    if (referenceSong.artist) searchQueries.push(`artist:${referenceSong.artist}`);
+    if (genre) searchQueries.push(`genre:${genre}`);
+    if (year) {
+      const y = parseInt(year);
+      if (!isNaN(y)) searchQueries.push(`year:${y - 2}-${y + 2}`); // 5-year window
+    }
+    // Fallbacks if genre/year missing
+    if (!genre) searchQueries.push('genre:pop');
+    if (!year) searchQueries.push('year:2015-2025');
+
     const allTracks: any[] = [];
-    
     for (const query of searchQueries) {
       try {
         console.log('DEBUG: Searching with query:', query);
         const response = await fetch(`https://api.spotify.com/v1/search?type=track&limit=10&q=${encodeURIComponent(query)}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
-        
         console.log('DEBUG: Search response status for query:', query, response.status);
-        
         if (response.ok) {
           const data = await response.json();
           allTracks.push(...data.tracks.items);
@@ -454,21 +490,16 @@ export class MusicService {
         console.log('Search query failed:', query, error);
       }
     }
-    
     console.log('DEBUG: Total tracks found:', allTracks.length);
-    
     // Remove duplicates and the reference song
     const uniqueTracks = allTracks.filter((track, index, self) => 
       index === self.findIndex(t => t.id === track.id) && track.id !== referenceSong.id
     );
-    
     console.log('DEBUG: Unique tracks after filtering:', uniqueTracks.length);
-    
     // Sort by popularity and return top results
     const result = uniqueTracks
       .sort((a, b) => b.popularity - a.popularity)
       .slice(0, limit);
-    
     console.log('DEBUG: Final recommendations count:', result.length);
     return result;
   }

@@ -14,6 +14,7 @@ export interface PlaylistRequest {
   referenceSong: string;
   referenceArtist: string;
   duration: number; // in minutes
+  bpm?: number;
 }
 
 export interface PlaylistResponse {
