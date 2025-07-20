@@ -275,6 +275,98 @@ export async function testUserSavedTracks() {
   return true;
 }
 
+// Save playlist to user's Spotify account
+export async function savePlaylistToSpotify(playlistName: string, songs: Song[], description?: string): Promise<string | null> {
+  const accessToken = getSpotifyAccessToken();
+  if (!accessToken) throw new Error('No Spotify access token found');
+  
+  try {
+    console.log('DEBUG: Saving playlist to Spotify:', playlistName, 'with', songs.length, 'songs');
+    
+    // Step 1: Get current user ID
+    const userResponse = await fetch('https://api.spotify.com/v1/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    
+    if (!userResponse.ok) {
+      console.error('DEBUG: Failed to get user info:', userResponse.status);
+      throw new Error('Failed to get user information');
+    }
+    
+    const userData = await userResponse.json();
+    const userId = userData.id;
+    console.log('DEBUG: User ID:', userId);
+    
+    // Step 2: Create the playlist
+    const createPlaylistResponse = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: playlistName,
+        description: description || `Generated playlist with ${songs.length} songs`,
+        public: false, // Make it private by default
+      }),
+    });
+    
+    if (!createPlaylistResponse.ok) {
+      console.error('DEBUG: Failed to create playlist:', createPlaylistResponse.status);
+      const errorText = await createPlaylistResponse.text();
+      console.error('DEBUG: Create playlist error:', errorText);
+      throw new Error('Failed to create playlist');
+    }
+    
+    const playlistData = await createPlaylistResponse.json();
+    const playlistId = playlistData.id;
+    const playlistUrl = playlistData.external_urls.spotify;
+    console.log('DEBUG: Created playlist with ID:', playlistId);
+    console.log('DEBUG: Playlist URL:', playlistUrl);
+    
+    // Step 3: Add songs to the playlist
+    const trackUris = songs.map(song => `spotify:track:${song.spotifyId}`).filter(uri => uri !== 'spotify:track:');
+    
+    if (trackUris.length === 0) {
+      console.log('DEBUG: No valid track URIs to add');
+      return playlistUrl;
+    }
+    
+    // Spotify API allows max 100 tracks per request, so we might need to batch
+    const batchSize = 100;
+    for (let i = 0; i < trackUris.length; i += batchSize) {
+      const batch = trackUris.slice(i, i + batchSize);
+      
+      const addTracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uris: batch,
+        }),
+      });
+      
+      if (!addTracksResponse.ok) {
+        console.error('DEBUG: Failed to add tracks batch:', addTracksResponse.status);
+        const errorText = await addTracksResponse.text();
+        console.error('DEBUG: Add tracks error:', errorText);
+        throw new Error('Failed to add tracks to playlist');
+      }
+      
+      console.log('DEBUG: Added batch of', batch.length, 'tracks to playlist');
+    }
+    
+    console.log('DEBUG: Successfully saved playlist to Spotify');
+    return playlistUrl;
+    
+  } catch (error) {
+    console.error('DEBUG: Error saving playlist to Spotify:', error);
+    throw error;
+  }
+}
+
 // Get tempo from external API as fallback
 async function getTempoFromExternalAPI(songName: string, artistName: string): Promise<number | null> {
   try {

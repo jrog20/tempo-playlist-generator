@@ -7,6 +7,7 @@ A beautiful web application that generates music playlists based on tempo and du
 - **Tempo-based Playlist Generation**: Creates playlists with songs that match the tempo of your reference song
 - **Genre Consistency**: Maintains similar genres while prioritizing tempo matching
 - **Duration Control**: Specify exactly how long you want your playlist to be
+- **Save to Spotify**: One-click saving of generated playlists directly to your Spotify account
 - **Beautiful UI**: Modern, responsive design with glass morphism effects
 - **Free to Use**: No API keys or paid services required
 - **Mobile Friendly**: Works perfectly on all devices
@@ -50,7 +51,8 @@ A beautiful web application that generates music playlists based on tempo and du
 2. **Enter the Artist**: Provide the artist name for better matching
 3. **Set Duration**: Use the slider to choose how long you want your playlist (15-120 minutes)
 4. **Generate**: Click the "Generate Playlist" button
-5. **Enjoy**: Your tempo-matched playlist will appear with song details and Spotify links
+5. **Save to Spotify**: Click "Save to Spotify" to create a new playlist in your Spotify account
+6. **Enjoy**: Your tempo-matched playlist will appear with song details and Spotify links
 
 ## 🌐 Free Deployment Options
 
@@ -144,7 +146,7 @@ The app is fully responsive and optimized for mobile devices. Key features:
 - [ ] Real-time music streaming integration
 - [ ] User accounts and saved playlists
 - [ ] Advanced filtering options
-- [ ] Export playlists to Spotify/Apple Music
+- [x] Export playlists to Spotify
 - [ ] Collaborative playlist creation
 - [ ] Mood-based recommendations
 - [ ] BPM visualization

@@ -5,6 +5,7 @@ import Callback from './Callback';
 import { MusicService, getPreviewUrl } from './services/musicService';
 import { PlaylistResponse } from './types';
 import { AuthProvider, useAuth } from './AuthContext';
+import { savePlaylistToSpotify } from './services/musicService';
 
 const musicService = MusicService.getInstance();
 
@@ -17,6 +18,10 @@ const MainApp: React.FC = () => {
   const [error, setError] = useState('');
   const [bpm, setBpm] = useState<number | null>(null);
   const [userAdjustedBpm, setUserAdjustedBpm] = useState<number | null>(null);
+  const [playlistName, setPlaylistName] = useState('');
+  const [savingPlaylist, setSavingPlaylist] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedPlaylistUrl, setSavedPlaylistUrl] = useState<string | null>(null);
 
   const handleGeneratePlaylist = async (customBpm?: number) => {
     if (!songName.trim() || !artistName.trim()) {
@@ -31,6 +36,8 @@ const MainApp: React.FC = () => {
     setLoading(true);
     setError('');
     setPlaylist(null);
+    setSavedPlaylistUrl(null);
+    setSaveError(null);
     try {
       const playlistResponse = await musicService.generatePlaylist({
         referenceSong: songName.trim(),
@@ -40,12 +47,42 @@ const MainApp: React.FC = () => {
       });
       setPlaylist(playlistResponse);
       setBpm(playlistResponse.targetTempo);
+      // Set a default playlist name
+      setPlaylistName(`${songName} Tempo Mix`);
       setUserAdjustedBpm(null);
     } catch (err) {
       console.error('DEBUG: Playlist generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate playlist');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSavePlaylist = async () => {
+    if (!playlist || !playlistName.trim()) {
+      setSaveError('Please enter a playlist name');
+      return;
+    }
+
+    setSavingPlaylist(true);
+    setSaveError(null);
+    setSavedPlaylistUrl(null);
+
+    try {
+      const defaultName = playlistName.trim() || `${songName} Tempo Mix`;
+      const description = `Generated playlist based on "${songName}" by ${artistName} at ${playlist.targetTempo} BPM`;
+      
+      const playlistUrl = await savePlaylistToSpotify(defaultName, playlist.songs, description);
+      
+      if (playlistUrl) {
+        setSavedPlaylistUrl(playlistUrl);
+        setPlaylistName(''); // Clear the input
+      }
+    } catch (err) {
+      console.error('Error saving playlist:', err);
+      setSaveError(err instanceof Error ? err.message : 'Failed to save playlist to Spotify');
+    } finally {
+      setSavingPlaylist(false);
     }
   };
 
@@ -231,6 +268,42 @@ const MainApp: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+              <div className="mt-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Save to Spotify</h3>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="text"
+                    value={playlistName}
+                    onChange={(e) => setPlaylistName(e.target.value)}
+                    placeholder="e.g., My Tempo Mix"
+                    className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={handleSavePlaylist}
+                    disabled={savingPlaylist || !playlist || !playlistName.trim()}
+                    className="px-6 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingPlaylist ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      "Save to Spotify"
+                    )}
+                  </button>
+                </div>
+                {saveError && (
+                  <div className="mt-4 text-red-300 text-sm">{saveError}</div>
+                )}
+                {savedPlaylistUrl && (
+                  <div className="mt-4 text-green-300 text-sm">
+                    <a href={savedPlaylistUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                      Your playlist is ready! Click here to open in Spotify.
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>
