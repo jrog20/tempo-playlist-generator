@@ -21,6 +21,11 @@ const MainApp: React.FC = () => {
       setError('Please enter both song name and artist');
       return;
     }
+    
+    // Debug: Check token before starting
+    const token = localStorage.getItem('spotify_access_token');
+    console.log('DEBUG: Token before playlist generation:', token ? 'present' : 'missing');
+    
     setLoading(true);
     setError('');
     setPlaylist(null);
@@ -32,6 +37,7 @@ const MainApp: React.FC = () => {
       });
       setPlaylist(playlistResponse);
     } catch (err) {
+      console.error('DEBUG: Playlist generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate playlist');
     } finally {
       setLoading(false);

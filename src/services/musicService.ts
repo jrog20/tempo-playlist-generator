@@ -33,6 +33,29 @@ export async function getSpotifyAudioFeatures(trackId: string) {
   console.log('DEBUG: About to fetch audio features for trackId:', trackId);
   console.log('DEBUG: Access token being used:', accessToken.substring(0, 20) + '...');
   
+  // Try backend proxy first (might work around 403 issues)
+  try {
+    const proxyResponse = await fetch(`http://localhost:3001/api/spotify/audio-features/${trackId}`, {
+      headers: { 
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+    });
+    
+    console.log('DEBUG: Proxy audio features response status:', proxyResponse.status);
+    
+    if (proxyResponse.ok) {
+      const data = await proxyResponse.json();
+      console.log('data in getSpotifyAudioFeatures (via proxy):', data);
+      return data;
+    }
+    
+    console.log('DEBUG: Proxy failed, trying direct Spotify API...');
+  } catch (error) {
+    console.log('DEBUG: Proxy not available, trying direct Spotify API...');
+  }
+  
+  // Fallback to direct Spotify API
   const response = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -44,10 +67,11 @@ export async function getSpotifyAudioFeatures(trackId: string) {
     const errorBody = await response.text();
     console.error('Failed to get audio features:', response.status, errorBody);
     console.error('DEBUG: Full error response body:', errorBody);
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('spotify_access_token');
-      window.location.href = '/#/login';
-    }
+    // Don't clear token for 403 errors in development mode - we expect them
+    // if (response.status === 401 || response.status === 403) {
+    //   localStorage.removeItem('spotify_access_token');
+    //   window.location.href = '/#/login';
+    // }
     throw new Error('Failed to get audio features');
   }
   const data = await response.json();
@@ -254,38 +278,34 @@ export async function testUserSavedTracks() {
 // Get tempo from external API as fallback
 async function getTempoFromExternalAPI(songName: string, artistName: string): Promise<number | null> {
   try {
-    // Try Last.fm API first (no API key required for basic usage)
-    const lastfmResponse = await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist=${encodeURIComponent(artistName)}&track=${encodeURIComponent(songName)}&api_key=YOUR_LASTFM_API_KEY&format=json`);
+    console.log(`DEBUG: Trying external tempo API for "${songName}" by "${artistName}"`);
     
-    if (lastfmResponse.ok) {
-      const data = await lastfmResponse.json();
-      if (data.track && data.track.toptags && data.track.toptags.tag) {
-        // Last.fm doesn't provide tempo directly, but we can use tags to estimate
-        const tags = data.track.toptags.tag.map((tag: any) => tag.name.toLowerCase());
-        if (tags.includes('fast') || tags.includes('upbeat')) return 140;
-        if (tags.includes('slow') || tags.includes('ballad')) return 80;
-        if (tags.includes('medium')) return 120;
-      }
-    }
-  } catch (error) {
-    console.log('Last.fm API failed:', error);
-  }
-  
-  try {
-    // Try AcousticBrainz API (free, no API key required)
-    const acousticResponse = await fetch(`https://acousticbrainz.org/api/v1/${encodeURIComponent(artistName)}/${encodeURIComponent(songName)}/low-level`);
+    // Try backend proxy for external tempo APIs
+    const response = await fetch(`http://localhost:3001/api/tempo/${encodeURIComponent(artistName)}/${encodeURIComponent(songName)}`);
     
-    if (acousticResponse.ok) {
-      const data = await acousticResponse.json();
-      if (data.rhythm && data.rhythm.bpm) {
-        return data.rhythm.bpm;
+    console.log(`DEBUG: External tempo API response status: ${response.status}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`DEBUG: External tempo API response data:`, data);
+      
+      if (data.tempo && typeof data.tempo === 'number') {
+        console.log(`DEBUG: Got tempo from external API: ${data.tempo} BPM (source: ${data.source || 'unknown'})`);
+        return data.tempo;
+      } else {
+        console.log(`DEBUG: External API returned invalid tempo data:`, data);
       }
+    } else {
+      const errorText = await response.text();
+      console.log(`DEBUG: External tempo API failed with status ${response.status}:`, errorText);
     }
+    
+    console.log('DEBUG: Backend tempo API failed or no tempo found');
+    return null;
   } catch (error) {
-    console.log('AcousticBrainz API failed:', error);
+    console.log('DEBUG: Backend tempo API not available:', error);
+    return null;
   }
-  
-  return null;
 }
 
 // Main service for playlist generation
@@ -309,7 +329,7 @@ export class MusicService {
       if (!track) return null;
       
       // Try to get audio features from Spotify first
-      let tempo = 120; // Default tempo
+      let tempo: number | null = null;
       try {
         const audioFeatures = await getSpotifyAudioFeatures(track.id);
         console.log('audioFeatures in searchSong:', audioFeatures);
@@ -317,14 +337,12 @@ export class MusicService {
       } catch (error) {
         console.log('Spotify audio features failed, trying external API...');
         // Try external API as fallback
-        const externalTempo = await getTempoFromExternalAPI(songName, artistName);
-        if (externalTempo) {
-          tempo = externalTempo;
+        tempo = await getTempoFromExternalAPI(songName, artistName);
+        if (tempo) {
           console.log('Got tempo from external API:', tempo);
         } else {
-          console.log('External API failed, using popularity-based estimate');
-          // Use popularity as a last resort
-          tempo = Math.max(80, Math.min(160, 120 + (track.popularity - 50) * 0.8));
+          console.log('No real tempo data available');
+          throw new Error('Cannot get tempo data for this song. Spotify audio features are not available in development mode, and external APIs have CORS restrictions.');
         }
       }
       
@@ -333,7 +351,7 @@ export class MusicService {
         title: track.name,
         artist: track.artists.map((a: any) => a.name).join(', '),
         album: track.album?.name,
-        tempo: tempo,
+        tempo: tempo!, // We know tempo is not null here because we throw an error if it is
         genre: '', // Optionally fetch genre from artist endpoint if needed
         duration: Math.floor(track.duration_ms / 1000),
         spotifyId: track.id,
@@ -348,6 +366,10 @@ export class MusicService {
   // Generate playlist based on tempo and duration using Spotify recommendations
   async generatePlaylist(request: PlaylistRequest): Promise<PlaylistResponse> {
     try {
+      // Check token at the start
+      const initialToken = getSpotifyAccessToken();
+      console.log('DEBUG: generatePlaylist - initial token:', initialToken ? 'present' : 'missing');
+      
       // 1. Find the reference song
       const referenceSong = await this.searchSong(request.referenceSong, request.referenceArtist);
       console.log('RIGHT BEFORE referenceSong in generatePlaylist: ', referenceSong);
@@ -355,6 +377,10 @@ export class MusicService {
         throw new Error('Reference song not found');
       }
       const targetTempo = referenceSong.tempo;
+      
+      // Check token before recommendations
+      const tokenBeforeRecs = getSpotifyAccessToken();
+      console.log('DEBUG: generatePlaylist - token before recommendations:', tokenBeforeRecs ? 'present' : 'missing');
       
       // 2. Get recommendations using search since recommendations endpoint is blocked
       const recTracks = await this.getSearchBasedRecommendations(referenceSong, targetTempo, 50);
@@ -395,6 +421,7 @@ export class MusicService {
   // Get recommendations using search instead of the recommendations endpoint
   async getSearchBasedRecommendations(referenceSong: Song, targetTempo: number, limit = 30): Promise<any[]> {
     const accessToken = getSpotifyAccessToken();
+    console.log('DEBUG: getSearchBasedRecommendations - access token:', accessToken ? 'present' : 'missing');
     if (!accessToken) throw new Error('No Spotify access token found');
     
     // Search for similar artists and songs
@@ -409,27 +436,40 @@ export class MusicService {
     
     for (const query of searchQueries) {
       try {
+        console.log('DEBUG: Searching with query:', query);
         const response = await fetch(`https://api.spotify.com/v1/search?type=track&limit=10&q=${encodeURIComponent(query)}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         
+        console.log('DEBUG: Search response status for query:', query, response.status);
+        
         if (response.ok) {
           const data = await response.json();
           allTracks.push(...data.tracks.items);
+          console.log('DEBUG: Found', data.tracks.items.length, 'tracks for query:', query);
+        } else {
+          console.log('DEBUG: Search failed for query:', query, response.status);
         }
       } catch (error) {
         console.log('Search query failed:', query, error);
       }
     }
     
+    console.log('DEBUG: Total tracks found:', allTracks.length);
+    
     // Remove duplicates and the reference song
     const uniqueTracks = allTracks.filter((track, index, self) => 
       index === self.findIndex(t => t.id === track.id) && track.id !== referenceSong.id
     );
     
+    console.log('DEBUG: Unique tracks after filtering:', uniqueTracks.length);
+    
     // Sort by popularity and return top results
-    return uniqueTracks
+    const result = uniqueTracks
       .sort((a, b) => b.popularity - a.popularity)
       .slice(0, limit);
+    
+    console.log('DEBUG: Final recommendations count:', result.length);
+    return result;
   }
 } 
