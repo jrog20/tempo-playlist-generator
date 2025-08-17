@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3001;
 
 // Enable CORS for your frontend
 app.use(cors({
-  origin: 'https://jrog20.github.io',
+  origin: process.env.FRONTEND_URL || 'https://jrog20.github.io',
   credentials: true
 }));
 

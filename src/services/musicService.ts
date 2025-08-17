@@ -33,9 +33,9 @@ export async function getSpotifyAudioFeatures(trackId: string) {
   console.log('DEBUG: About to fetch audio features for trackId:', trackId);
   console.log('DEBUG: Access token being used:', accessToken.substring(0, 20) + '...');
   
-  // Try backend proxy first (might work around 403 issues)
-  try {
-    const proxyResponse = await fetch(`http://localhost:3001/api/spotify/audio-features/${trackId}`, {
+      // Try backend proxy first (might work around 403 issues)
+    try {
+      const proxyResponse = await fetch(`${process.env.REACT_APP_API_URL || 'https://tempo-playlist-generator-8elntfpcl-js-projects-22fdf35c.vercel.app'}/api/spotify/audio-features/${trackId}`, {
       headers: { 
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
@@ -373,7 +373,7 @@ async function getTempoFromExternalAPI(songName: string, artistName: string): Pr
     console.log(`DEBUG: Trying external tempo API for "${songName}" by "${artistName}"`);
     
     // Try backend proxy for external tempo APIs
-    const response = await fetch(`http://localhost:3001/api/tempo/${encodeURIComponent(artistName)}/${encodeURIComponent(songName)}`);
+    const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://tempo-playlist-generator-8elntfpcl-js-projects-22fdf35c.vercel.app'}/api/tempo/${encodeURIComponent(artistName)}/${encodeURIComponent(songName)}`);
     
     console.log(`DEBUG: External tempo API response status: ${response.status}`);
     
