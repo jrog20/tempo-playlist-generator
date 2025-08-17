@@ -367,7 +367,49 @@ export async function savePlaylistToSpotify(playlistName: string, songs: Song[],
   }
 }
 
-// Get tempo from external API as fallback
+// Get tempo from OpenAI LLM as primary fallback
+async function getTempoFromOpenAI(songName: string, artistName: string): Promise<number | null> {
+  try {
+    console.log(`DEBUG: Trying OpenAI LLM for BPM estimation for "${songName}" by "${artistName}"`);
+    
+    // Call backend OpenAI endpoint
+    const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://tempo-playlist-generator-production.up.railway.app'}/api/openai/tempo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        song: songName,
+        artist: artistName
+      })
+    });
+    
+    console.log(`DEBUG: OpenAI LLM response status: ${response.status}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`DEBUG: OpenAI LLM response data:`, data);
+      
+      if (data.bpm && typeof data.bpm === 'number') {
+        console.log(`DEBUG: Got BPM from OpenAI LLM: ${data.bpm} BPM`);
+        return data.bpm;
+      } else {
+        console.log(`DEBUG: OpenAI LLM returned invalid BPM data:`, data);
+      }
+    } else {
+      const errorText = await response.text();
+      console.log(`DEBUG: OpenAI LLM failed with status ${response.status}:`, errorText);
+    }
+    
+    console.log('DEBUG: OpenAI LLM failed or no BPM found');
+    return null;
+  } catch (error) {
+    console.log('DEBUG: OpenAI LLM not available:', error);
+    return null;
+  }
+}
+
+// Get tempo from external API as secondary fallback
 async function getTempoFromExternalAPI(songName: string, artistName: string): Promise<number | null> {
   try {
     console.log(`DEBUG: Trying external tempo API for "${songName}" by "${artistName}"`);
@@ -426,15 +468,23 @@ export class MusicService {
         const audioFeatures = await getSpotifyAudioFeatures(track.id);
         console.log('audioFeatures in searchSong:', audioFeatures);
         tempo = audioFeatures.tempo;
+        console.log('Got tempo from Spotify audio features:', tempo);
       } catch (error) {
-        console.log('Spotify audio features failed, trying external API...');
-        // Try external API as fallback
-        tempo = await getTempoFromExternalAPI(songName, artistName);
+        console.log('Spotify audio features failed, trying OpenAI LLM...');
+        // Try OpenAI LLM as primary fallback
+        tempo = await getTempoFromOpenAI(songName, artistName);
         if (tempo) {
-          console.log('Got tempo from external API:', tempo);
+          console.log('Got tempo from OpenAI LLM:', tempo);
         } else {
-          console.log('No real tempo data available');
-          throw new Error('Cannot get tempo data for this song. Spotify audio features are not available in development mode, and external APIs have CORS restrictions.');
+          console.log('OpenAI LLM failed, trying external API...');
+          // Try external API as secondary fallback
+          tempo = await getTempoFromExternalAPI(songName, artistName);
+          if (tempo) {
+            console.log('Got tempo from external API:', tempo);
+          } else {
+            console.log('No real tempo data available');
+            throw new Error('Cannot get tempo data for this song. All BPM sources are unavailable.');
+          }
         }
       }
       
