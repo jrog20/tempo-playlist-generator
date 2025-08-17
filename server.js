@@ -10,8 +10,10 @@ const PORT = process.env.PORT || 3001;
 
 // Enable CORS for your frontend
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://jrog20.github.io',
-  credentials: true
+  origin: ['https://jrog20.github.io', 'https://jrog20.github.io/tempo-playlist-generator', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
